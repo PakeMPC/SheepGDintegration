@@ -13,6 +13,22 @@ shows up instantly in the app and in its OBS widgets, and the other way around.
 > has no queue to show: the app is what listens to Twitch, YouTube, TikTok, Kick and Discord chats,
 > filters the requests and writes the file.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/sheepgdintegrationmain.png" width="100%"
+       alt="The queue scene: the Now Playing card with the current level, and the list of next levels below it" />
+  <br />
+  <em>The queue scene: the level that's up now, and the ones coming next</em>
+</p>
+
+| | |
+|:---:|:---:|
+| <img src="screenshots/sheepgdintegrationmain2.png" alt="The queue scene with a level requested from TikTok" /> | <img src="screenshots/sheepgdintegrationsettings.png" alt="The settings popup" /> |
+| Every request shows its difficulty, stats, thumbnail and who sent it | All the options, in a popup inside the scene |
+| <img src="screenshots/mainmenubuttonpreview.png" alt="The sheep button in the main menu, next to the Geometry Dash title" /> | <img src="screenshots/sheepgdintegrationgeodeinfo.png" alt="The mod's page in Geode" /> |
+| The sheep button in the main menu opens the queue | The mod's page in Geode |
+
 ## Features
 
 **The queue, inside the game**
