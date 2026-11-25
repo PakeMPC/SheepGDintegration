@@ -279,7 +279,7 @@ public:
 
         // El tiron de construir el nivel ocurre en esta linea. Por eso va aqui y no
         // antes: detras del negro no se ve.
-        auto scene = PlayLayer::scene(m_level, false, false);
+        auto scene = PlayLayer::scene(m_level, false);
 
         // Velo de entrada: nace opaco dentro de la escena nueva y se abre.
         auto veil = CCLayerColor::create({0, 0, 0, 255});

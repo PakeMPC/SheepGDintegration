@@ -59,6 +59,19 @@ namespace {
     // teclado no tiene otra forma de preguntarlo.
     bool g_sheepPaused = false;
 
+    // El menu de pausa de la escena en pantalla, o nullptr. Se busca entre los hijos
+    // de la escena, que es donde lo cuelga GD.
+    PauseLayer* findPauseLayer() {
+        auto scene = CCDirector::get()->getRunningScene();
+        if (!scene || !scene->getChildren()) return nullptr;
+        auto kids = scene->getChildren();
+        for (unsigned int i = 0; i < kids->count(); ++i) {
+            if (auto p = geode::cast::typeinfo_cast<PauseLayer*>(kids->objectAtIndex(i)))
+                return p;
+        }
+        return nullptr;
+    }
+
     // Mueve la cola un paso desde el teclado: hacia delante (E) o hacia atras (Q).
     // Devuelve true si la cola cambio y se guardo en el JSON.
     //
@@ -72,22 +85,28 @@ namespace {
 
         auto& d = svc->data();
 
-        // Enfriamiento de un segundo entre cambios de nivel (sheep::trySkip, en
-        // SheepTime.hpp), compartido con las flechas de la escena. Se comprueba
-        // despues de saber si hay a donde saltar y antes de mutar la cola: asi una
-        // E con la cola vacia no gasta el turno del salto valido que venga detras.
-        bool hayDestino = adelante ? !d.queue.empty() : !d.history.empty();
+        // Hacia delante hay destino si queda cola, o si no queda pero hay un nivel
+        // actual: entonces el actual pasa al historial y queda el centinela
+        // WAITING, que la partida trata como fin de cola (placeholder, salir o
+        // seguir, segun el ajuste). Es lo mismo que hace la flecha de la escena.
+        bool hayDestino = adelante ? (!d.queue.empty() || d.current.isValid())
+                                   : !d.history.empty();
+
+        // Enfriamiento entre cambios de nivel (sheep::trySkip, en SheepTime.hpp),
+        // compartido con las flechas de la escena. Se comprueba despues de saber si
+        // hay a donde saltar y antes de mutar la cola: asi una tecla sin destino no
+        // gasta el turno del salto valido que venga detras.
         if (hayDestino && !sheep::trySkip()) {
             log::debug("[SheepGD] {}", sheep::tr("Log_SkipTooFast"));
             return false;
         }
 
         if (adelante) {
-            if (d.queue.empty()) {
+            if (!hayDestino) {
                 log::debug("[SheepGD] {}", sheep::tr("Log_KeyQueueEmpty"));
                 return false;
             }
-            d.skipToNext();
+            d.skipToNext();   // con la cola vacia, el actual pasa a WAITING
         } else {
             if (d.history.empty()) {
                 log::debug("[SheepGD] {}", sheep::tr("Log_KeyNoPrevious"));
@@ -119,11 +138,6 @@ class $modify(MyMenuLayer, MenuLayer) {
         auto sheepMenu = CCMenu::create();
         sheepMenu->setID("sheep-menu"_spr);
 
-        // 2. Arriba a la derecha, a 40 puntos de cada borde.
-        // Posicion fija a proposito, y no colgado de un menu del juego: otro mod que
-        // use esa esquina se solaparia con el boton, pero se decidio dejarlo asi.
-        sheepMenu->setPosition({winSize.width - 40.f, winSize.height - 40.f});
-
         auto sheepSprite = CCSprite::create("sheep_btn.png"_spr);
         auto sheepBtn = CCMenuItemSpriteExtra::create(
             sheepSprite,
@@ -133,6 +147,17 @@ class $modify(MyMenuLayer, MenuLayer) {
 
         sheepBtn->setID("sheep-queue-button"_spr);
         sheepMenu->addChild(sheepBtn);
+
+        // 2. Arriba a la derecha: a 40 puntos del borde derecho, y con la soga
+        // pegada al borde superior. El PNG llega justo hasta el borde de arriba,
+        // asi que basta con subir el centro media altura. La altura se lee del
+        // sprite en vez de escribirla a mano: con Geode 6 el tamano con el que se
+        // carga cambio, y un numero fijo dejaba la soga separada del borde.
+        //
+        // Posicion fija a proposito, y no colgado de un menu del juego: otro mod que
+        // use esa esquina se solaparia con el boton, pero se decidio dejarlo asi.
+        float alto = sheepSprite ? sheepSprite->getScaledContentSize().height : 80.f;
+        sheepMenu->setPosition({winSize.width - 40.f, winSize.height - alto / 2.f});
 
         // 3. El menu se anade directamente al MenuLayer.
         this->addChild(sheepMenu);
@@ -255,8 +280,8 @@ class $modify(SheepPlayLayer, PlayLayer) {
 
     // Al entrar al nivel: si la partida viene de la cola, arma el vigia
     // (sheepTick) y, segun los ajustes, el reloj del auto-skip.
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+    bool init(GJGameLevel* level, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, dontCreateObjects)) return false;
 
         g_sheepPaused = false;   // nivel nuevo, empieza corriendo
 
@@ -274,7 +299,14 @@ class $modify(SheepPlayLayer, PlayLayer) {
 
         // requestId y no levelId: el mismo nivel puede estar pedido dos veces y
         // son peticiones distintas.
-        m_fields->m_watchedRequestId = cur.requestId;
+        //
+        // Salvo si el nivel que se esta abriendo no es el actual del JSON: pasa si
+        // se pulsa Q/E varias veces seguidas y la cola avanza mientras el salto
+        // anterior todavia esta en camino. Entonces no se apunta nada, y en el
+        // primer tick el vigia ve un requestId "nuevo" y salta al nivel correcto.
+        bool esElActual = sheep::inPlaceholder() || !cur.isValid()
+                       || level->m_levelID.value() == cur.levelIdAsInt();
+        m_fields->m_watchedRequestId = esElActual ? cur.requestId : std::string();
 
         // Si el tiempo del nivel ya estaba agotado antes de entrar, ese fin de cola
         // no es de esta partida. El caso tipico es abrir GD con SheepGDRequest
@@ -682,8 +714,8 @@ class $modify(SheepPlayLayer, PlayLayer) {
     }
 
     // En pausa el schedule del nodo esta parado, asi que un salto pedido con el
-    // teclado no se aplicaria hasta reanudar y se veria como un tiron sin causa.
-    // Por eso el hook del teclado ignora Q y E mientras g_sheepPaused este puesto.
+    // teclado no se aplicaria hasta reanudar. Por eso el hook del teclado, si mueve
+    // la cola con g_sheepPaused puesto, reanuda la partida (ver SheepKeyboard).
     void pauseGame(bool unfocused) {
         g_sheepPaused = true;
         PlayLayer::pauseGame(unfocused);
@@ -941,7 +973,7 @@ class $modify(SheepColorPage, CharacterColorPage) {
 // simplemente el hook no se engancha.
 //
 // La escena del mod escucha el teclado por su cuenta; este hook solo actua dentro
-// de la partida.
+// de la partida, tambien con el menu de pausa abierto.
 class $modify(SheepKeyboard, CCKeyboardDispatcher) {
     bool dispatchKeyboardMSG(enumKeyCodes key, bool isKeyDown, bool isKeyRepeat, double timing) {
         // Solo dentro de una partida lanzada desde la cola, que es justo lo que
@@ -950,9 +982,21 @@ class $modify(SheepKeyboard, CCKeyboardDispatcher) {
         //
         // isKeyRepeat queda fuera: mantener la tecla pulsada no debe vaciar la cola.
         // Devolver true consume la tecla, para que no llegue a nadie mas.
-        if (isKeyDown && !isKeyRepeat && !g_sheepPaused && SheepQueueLayer::s_returnTicket) {
-            if (key == KEY_E) { sheepQueueStep(true);  return true; }
-            if (key == KEY_Q) { sheepQueueStep(false); return true; }
+        if (isKeyDown && !isKeyRepeat && SheepQueueLayer::s_returnTicket
+            && (key == KEY_E || key == KEY_Q)) {
+            bool movio = sheepQueueStep(key == KEY_E);
+
+            // En pausa el schedule de la partida esta parado, asi que el vigia no
+            // veria el cambio hasta reanudar. Si la cola se movio, se sale de la
+            // pausa como con el boton de reanudar, y el salto sigue su camino
+            // normal en el siguiente tick (fundido incluido). Si no se movio, se
+            // queda en pausa. Se reanuda por PauseLayer::onResume y no saltando
+            // directamente desde la pausa: asi el audio sale de su estado de pausa
+            // por la via de GD (ver las reglas de onQuit).
+            if (movio && g_sheepPaused) {
+                if (auto pausa = findPauseLayer()) pausa->onResume(nullptr);
+            }
+            return true;
         }
         return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat, timing);
     }

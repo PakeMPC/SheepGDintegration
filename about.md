@@ -13,7 +13,7 @@ and the ones coming next underneath. From there you can play, view, skip forward
 pick one at random, or play any level in the list.
 
 Everything you do is written back to the same file the app uses, so the app and its OBS widgets
-update instantly — and new requests show up here on their own.
+update instantly, and new requests show up here on their own.
 
 The **gear** in the top-right corner opens the settings.
 
@@ -23,11 +23,11 @@ The **gear** in the top-right corner opens the settings.
   leaving gameplay. An optional on-screen timer shows the whole countdown or only the last 10
   seconds.
 - **Swap on death.** Optionally wait until you die before switching, instead of cutting the attempt.
-- **Q / E** jump to the previous / next level while playing a requested level (one change per
-  second at most).
+- **Q / E** jump to the previous / next level while playing a requested level, also from the
+  pause menu.
 - **When the queue runs out**, choose: stay in the level, go back to the list, stay until you die,
   or load a placeholder level of your choice.
-- **Preloading.** The next level and all of its audio — multiple songs and sound effects included —
+- **Preloading.** The next level and all of its audio (multiple songs and sound effects included)
   are downloaded ahead of time, so jumps are instant and no level starts silent.
 - **Sheepy**, an optional cube icon for your gameplay (or only for requested levels). It keeps your
   colours and glow.

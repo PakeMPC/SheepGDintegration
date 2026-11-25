@@ -1,17 +1,14 @@
 {
-	"geode": "5.9.0",
+	"geode": "6.0.0",
 	"gd": {
-		"win": "2.2081"
+		"win": "2.2091"
 	},
 	"id": "pakempc.sheepgdintegration",
 	"name": "SheepGDintegration",
-	"version": "v1.0.0",
+	"version": "v1.1.0",
 	"developer": "PakeMPC",
 	"description": "Play, skip and manage your SheepGDRequest level queue without leaving Geometry Dash.",
 	"tags": ["utility", "interface", "online"],
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3"
-	},
 	"resources": {
 		"sprites": [
 			"resources/*.png",

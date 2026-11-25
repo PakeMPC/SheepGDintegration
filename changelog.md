@@ -1,3 +1,22 @@
+# v1.1.0
+
+## Geometry Dash 2.2091
+- Updated to Geometry Dash 2.2091 and Geode 6.0.0. This version no longer runs on 2.2081: if you
+  are still on 2.2081, keep using v1.0.0.
+- Level thumbnails work again. 2.2091 can no longer read the WebP images the thumbnail service
+  sends, so the mod now decodes them itself. They are also downloaded at 1280x720 instead of full
+  size, which saves bandwidth, disk space and memory.
+- No longer depends on Node IDs.
+
+## Changes
+- **Next on the last level.** The right arrow and **E** now also work when the queue is empty:
+  the current level goes to the history, and the card shows your placeholder level (in
+  Placeholder mode) or the waiting card. In game, the end-of-queue setting takes over.
+- **Q / E from the pause menu.** The game resumes and jumps to the level.
+- The cooldown between level changes is now 100 ms instead of 1 second.
+- Pressing **Q / E** several times in a row always ends on the level the queue points to.
+- The rope of the sheep button reaches the top edge of the screen again.
+
 # v1.0.0
 
 First release.
@@ -11,7 +30,7 @@ First release.
 - Play, view, skip forward or back, remove, pick at random, or play any level straight from the
   list.
 - Everything is written back to `queue_data.json`, so SheepGDRequest and its OBS widgets update
-  instantly — and new requests appear on their own.
+  instantly, and new requests appear on their own.
 - Settings popup in the scene, so options can change mid-stream without leaving it.
 - **Esc** leaves the scene.
 

@@ -4,6 +4,7 @@
 #include <Geode/utils/async.hpp>
 #include <Geode/utils/general.hpp>
 #include "SheepI18n.hpp"
+#include "SheepPath.hpp"
 #include <vector>
 #include <functional>
 #include <fstream>
@@ -562,7 +563,7 @@ struct QueueData {
                 // El selector es asincrono: la respuesta llega en el callback.
                 async::spawn(
                     utils::file::pick(utils::file::PickMode::OpenFile, options),
-                    [onLinked, onCancelled](Result<std::optional<std::filesystem::path>> result) {
+                    [onLinked, onCancelled](utils::file::PickResult result) {
                         if (!result.isOk()) {
                             if (onCancelled) onCancelled();
                             return;
@@ -575,7 +576,9 @@ struct QueueData {
                             if (onCancelled) onCancelled();
                             return;
                         }
-                        auto path = optPath.value();
+                        // Geode 6 devuelve asp::fs::Path; el resto del mod usa
+                        // std::filesystem.
+                        auto path = sheep::stdPath(*optPath);
                         Mod::get()->setSavedValue(SAVE_KEY, path.string());
                         FLAlertLayer::create(sheep::tr("Link_OkTitle").c_str(),
                                              sheep::tr("Link_OkBody").c_str(),

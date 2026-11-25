@@ -44,8 +44,8 @@ shows up instantly in the app and in its OBS widgets, and the other way around.
   countdown or only the last 10 seconds.
 - **Swap on death.** Optionally wait until you die before switching levels, instead of cutting the
   attempt short.
-- **Q / E** jump to the previous / next level, only in levels launched from the queue. Level changes
-  are limited to one per second, so spamming them can't trip up the queue.
+- **Q / E** jump to the previous / next level, only in levels launched from the queue, also from
+  the pause menu. A short cooldown keeps accidental double presses from skipping two levels.
 - When the queue runs out, choose what happens: stay in the level, go back to the list, stay until
   you die, or load a placeholder level of your choice.
 - Leaving a level takes you back to the queue, not to the main menu.
@@ -67,10 +67,9 @@ they can be changed mid-stream without opening Geode's mod list.
 
 | | |
 |---|---|
-| Geometry Dash | 2.2081 |
-| Geode | 5.9.0 |
+| Geometry Dash | 2.2091 |
+| Geode | 6.0.0 |
 | Platform | Windows. Also runs on Linux through Steam's Proton. |
-| Dependency | [`geode.node-ids`](https://github.com/geode-sdk/NodeIDs) |
 | Companion app | SheepGDRequest |
 
 ## Linking the queue file
@@ -118,7 +117,7 @@ SDK and the CLI.
 may not be the one this mod targets:
 
 ```sh
-geode sdk update v5.9.0
+geode sdk update v6.0.0
 geode sdk install-binaries
 ```
 
@@ -132,7 +131,6 @@ your terminal:
 ```sh
 export GEODE_SDK=$HOME/.local/share/Geode/sdk
 export SPLAT_DIR=$HOME/.local/share/Geode/cross-tools/splat
-export CMAKE_TOOLCHAIN_FILE=$HOME/.local/share/Geode/cross-tools/clang-msvc-sdk/clang-cl-msvc.cmake
 export HOST_ARCH=x86_64
 export CC=/usr/lib/llvm-19/bin/clang-cl
 export CXX=/usr/lib/llvm-19/bin/clang-cl
@@ -148,6 +146,15 @@ Two of these are easy to miss:
   not enough.
 - **`PATH` with the Geode CLI.** `setup_geode_mod` fails with *"Geode CLI was not found"* even if
   `geode` works in your terminal, when the IDE doesn't see the same `PATH`.
+
+The toolchain goes in as a CMake option, **not** as an environment variable:
+
+```sh
+-DCMAKE_TOOLCHAIN_FILE=$HOME/.local/share/Geode/cross-tools/clang-msvc-sdk/clang-cl-msvc.cmake
+```
+
+The bindings build their code generator as a native Linux program, and with CMake 4.3 that inner
+build picks up `CMAKE_TOOLCHAIN_FILE` from the environment and tries to compile it for Windows.
 
 Put them in `~/.profile` rather than `~/.bashrc` or `~/.bash_profile`, and log out and back in:
 terminals and IDEs don't read the same startup files, so each can end up seeing a different

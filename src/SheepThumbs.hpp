@@ -4,14 +4,17 @@
 #include <Geode/utils/file.hpp>
 #include <Geode/utils/async.hpp>
 #include "SheepI18n.hpp"
+#include "SheepPath.hpp"
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <chrono>
 #include <functional>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <webp/decode.h>
 
 using namespace geode::prelude;
 
@@ -64,7 +67,7 @@ namespace detail {
 
 // Carpeta de la cache dentro del saveDir del mod. La crea si no existe.
 inline std::filesystem::path thumbCacheDir() {
-    auto dir = Mod::get()->getSaveDir() / "thumbs";
+    auto dir = stdPath(Mod::get()->getSaveDir()) / "thumbs";
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     return dir;
@@ -137,13 +140,35 @@ inline void rememberThumb(std::string const& levelId, CCTexture2D* tex) {
 // Bytes de la imagen (PNG o JPG) -> textura de cocos, registrada en CCTextureCache
 // con la clave 'key'. nullptr si los bytes no son una imagen valida (por ejemplo,
 // una pagina de error en vez de la miniatura).
+// Indica si los bytes son un WebP (cabecera "RIFF" .... "WEBP").
+inline bool isWebp(ByteVector const& bytes) {
+    return bytes.size() > 12
+        && std::memcmp(bytes.data(), "RIFF", 4) == 0
+        && std::memcmp(bytes.data() + 8, "WEBP", 4) == 0;
+}
+
 inline CCTexture2D* textureFromBytes(std::string const& key, ByteVector const& bytes) {
     if (bytes.empty()) return nullptr;
 
     auto img = new CCImage();
-    // Sin indicar formato (kFmtUnKnown): cocos detecta por la cabecera si es PNG
-    // o JPG.
-    if (!img->initWithImageData(const_cast<uint8_t*>(bytes.data()), (int)bytes.size())) {
+    bool leida = false;
+
+    if (isWebp(bytes)) {
+        // levelthumbs.prevter.me sirve WebP, y el cocos de GD 2.2091 ya no lo sabe
+        // leer (el de 2.2081 si; probado: ni con el formato explicito). Se
+        // decodifica con libwebp a RGBA y se le pasa a cocos como datos en crudo,
+        // que CCImage copia: por eso el buffer de libwebp se libera justo despues.
+        int w = 0, h = 0;
+        uint8_t* rgba = WebPDecodeRGBA(bytes.data(), bytes.size(), &w, &h);
+        leida = rgba && w > 0 && h > 0
+             && img->initWithImageData(rgba, w * h * 4, CCImage::kFmtRawData, w, h, 8);
+        if (rgba) WebPFree(rgba);
+    } else {
+        // Lo demas (PNG, JPG), por la deteccion automatica de cocos (kFmtUnKnown).
+        leida = img->initWithImageData(const_cast<uint8_t*>(bytes.data()), (int)bytes.size());
+    }
+
+    if (!leida) {
         img->release();
         return nullptr;
     }
@@ -169,7 +194,7 @@ inline CCTexture2D* cachedThumb(std::string const& levelId) {
     std::error_code ec;
     if (!std::filesystem::exists(file, ec)) return nullptr;
 
-    auto res = utils::file::readBinary(file);
+    auto res = utils::file::readBinary(aspPath(file));
     if (res.isErr()) return nullptr;
 
     auto tex = textureFromBytes("sheepgd-thumb-" + levelId, res.unwrap());
@@ -190,7 +215,7 @@ inline CCTexture2D* storeThumb(std::string const& levelId, ByteVector const& byt
 
     rememberThumb(levelId, tex);
 
-    auto written = utils::file::writeBinary(thumbCacheDir() / (levelId + ".img"), bytes);
+    auto written = utils::file::writeBinary(aspPath(thumbCacheDir() / (levelId + ".img")), bytes);
     if (written.isErr()) {
         log::warn("[SheepGD] {}", trf("Log_ThumbCacheFailed", levelId));
         return tex;
@@ -202,11 +227,19 @@ inline CCTexture2D* storeThumb(std::string const& levelId, ByteVector const& byt
     return tex;
 }
 
-// URL de la miniatura: la del JSON (ThumbnailUrl) si la trae; si no, se construye
-// la de levelthumbs.prevter.me a partir del ID.
+// Resolucion que se pide a levelthumbs.prevter.me: "medium" es 1280x720. La
+// original (1920x1080) no se nota en la tarjeta ni en las filas, y cuesta mas red,
+// disco y memoria (unos 8 MB por textura ya decodificada, frente a 3,5).
+inline constexpr char const* kThumbRes = "medium";
+
+// URL de la miniatura. Si es de levelthumbs.prevter.me, la construye el mod para
+// pedir la resolucion de kThumbRes, venga o no en el JSON (SheepGDRequest la
+// escribe sin resolucion). Si el JSON trae otra URL, se respeta tal cual.
 inline std::string thumbUrl(std::string const& levelId, std::string const& jsonUrl) {
-    if (!jsonUrl.empty()) return jsonUrl;
-    return fmt::format("https://levelthumbs.prevter.me/thumbnail/{}", levelId);
+    if (jsonUrl.empty() || jsonUrl.starts_with("https://levelthumbs.prevter.me/")) {
+        return fmt::format("https://levelthumbs.prevter.me/thumbnail/{}/{}", levelId, kThumbRes);
+    }
+    return jsonUrl;
 }
 
 // Pide a la red la miniatura de un nivel que no esta en cache, y llama a 'cb' con
@@ -233,11 +266,17 @@ inline void requestThumb(std::string const& levelId, std::string const& url,
     if (!nueva) return;   // ya estaba en camino
 
     async::spawn(
-        web::WebRequest().timeout(std::chrono::seconds(10)).get(url),
+        web::WebRequest().timeout(asp::Duration::fromSecs(10)).get(url),
         [levelId](web::WebResponse res) {
             CCTexture2D* tex = nullptr;
             if (res.ok()) {
                 tex = storeThumb(levelId, res.data());
+                // Respuesta correcta pero imagen que no se pudo leer: es el formato o
+                // los datos lo que falla, no la red.
+                if (!tex) {
+                    log::warn("[SheepGD] {}", trf("Log_ThumbBadImage", levelId,
+                              res.data().size(), isWebp(res.data()) ? "WebP" : "?"));
+                }
             } else if (res.code() == 404) {
                 // Lo normal en un nivel sin miniatura: no merece un aviso.
                 log::debug("[SheepGD] {}", trf("Log_ThumbFailed", res.code(), levelId));

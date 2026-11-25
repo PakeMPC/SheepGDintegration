@@ -133,6 +133,7 @@ namespace detail {
 
             { "Log_OrbsClamped",        "Orbs of level {}: awarded {} > total {}, clamped" },
             { "Log_ThumbFailed",        "Thumbnail failed ({}) for level {}" },
+            { "Log_ThumbBadImage",      "Thumbnail for level {} could not be read as an image ({} bytes, {})" },
             { "Log_PlaceholderFailed",  "Placeholder {}: the search failed" },
             { "Log_PlaceholderReady",   "Placeholder {}: entry ready ({})" },
             { "Log_PrefetchYield",      "Prefetch: giving up the slot (level {})" },
@@ -249,6 +250,7 @@ namespace detail {
 
             { "Log_OrbsClamped",        "Orbes del nivel {}: ganadas {} > total {}, se recorta" },
             { "Log_ThumbFailed",        "Miniatura fallo ({}) para el nivel {}" },
+            { "Log_ThumbBadImage",      "La miniatura del nivel {} no se pudo leer como imagen ({} bytes, {})" },
             { "Log_PlaceholderFailed",  "Placeholder {}: fallo la busqueda" },
             { "Log_PlaceholderReady",   "Placeholder {}: ficha lista ({})" },
             { "Log_PrefetchYield",      "Precarga: cediendo el turno (nivel {})" },
@@ -364,6 +366,7 @@ namespace detail {
 
             { "Log_OrbsClamped",        "Orbes do nivel {}: ganhas {} > total {}, foi cortado" },
             { "Log_ThumbFailed",        "Miniatura falhou ({}) para o nivel {}" },
+            { "Log_ThumbBadImage",      "A miniatura do nivel {} nao pode ser lida como imagem ({} bytes, {})" },
             { "Log_PlaceholderFailed",  "Nivel de espera {}: a busca falhou" },
             { "Log_PlaceholderReady",   "Nivel de espera {}: ficha pronta ({})" },
             { "Log_PrefetchYield",      "Pre-carga: cedendo a vez (nivel {})" },

@@ -46,10 +46,12 @@ namespace sheep {
     // instantaneo, asi que encadenar varios saltos en el mismo segundo pone todo
     // el flujo a competir consigo mismo.
     //
-    // Un segundo no se nota para quien pulsa una vez, y corta las pulsaciones
-    // repetidas.
+    // 100 ms cortan las pulsaciones dobles accidentales sin frenar a quien quiere
+    // pasar varios niveles seguidos (antes era 1 s, y se notaba). Lo que llega a
+    // pisarse con saltos tan seguidos lo corrige el vigia de la partida al entrar
+    // al nivel (ver SheepPlayLayer::init).
     // -----------------------------------------------------------------------
-    inline constexpr double kSkipCooldown = 1.0;   // segundos
+    inline constexpr double kSkipCooldown = 0.1;   // segundos
 
     namespace detail {
         // Instante del ultimo salto. steady_clock y no system_clock: este reloj no

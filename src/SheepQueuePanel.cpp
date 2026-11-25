@@ -103,6 +103,11 @@ void SheepQueuePanel::buildFrame() {
 
     // El scroll primero y en z bajo: todo el marco se dibuja por delante.
     m_scroll = ScrollLayer::create(m_listSize);
+    // Desde Geode 6 el ScrollLayer nace con el ancla en el centro y la respeta al
+    // posicionarse; antes se colocaba por la esquina inferior izquierda. Se fija
+    // el ancla a mano para que la posicion signifique lo mismo en las dos.
+    m_scroll->ignoreAnchorPointForPosition(false);
+    m_scroll->setAnchorPoint({0.f, 0.f});
     m_scroll->setPosition({-halfW, -halfH});
     this->addChild(m_scroll, 5);
 

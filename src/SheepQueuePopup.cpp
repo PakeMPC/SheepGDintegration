@@ -508,10 +508,10 @@ void SheepQueueLayer::persistAndRefresh() {
 void SheepQueueLayer::onPrevLevel(CCObject*) {
     if (m_cardSliding || data().history.empty()) return;
 
-    // Enfriamiento de un segundo (sheep::trySkip). m_cardSliding ya frena durante la
-    // animacion, pero son ~0,4 s y solo cubren esta escena; el limite real es este,
-    // y es el mismo que usan las teclas Q/E en la partida. Va antes de levantar la
-    // bandera para no dejarla puesta en un salto que no va a ocurrir.
+    // Enfriamiento (sheep::trySkip), el mismo que usan las teclas Q/E en la
+    // partida. Aqui, ademas, m_cardSliding frena durante la animacion (~0,4 s). Va
+    // antes de levantar la bandera para no dejarla puesta en un salto que no va a
+    // ocurrir.
     if (!sheep::trySkip()) return;
 
     m_cardSliding = true;
@@ -527,16 +527,21 @@ void SheepQueueLayer::onPrevLevel(CCObject*) {
 }
 
 // Flecha derecha: pasa al siguiente nivel de la cola.
+//
+// Con la cola vacia tambien avanza si hay un nivel actual: pasa al historial y
+// queda el centinela WAITING, y la tarjeta muestra el placeholder si ese es el
+// modo de fin de cola (paintCard), o el "esperando peticiones" si no.
 void SheepQueueLayer::onNextLevel(CCObject*) {
-    if (m_cardSliding || data().queue.empty()) return;
+    if (m_cardSliding) return;
+    if (data().queue.empty() && !data().current.isValid()) return;
 
     if (!sheep::trySkip()) return;   // enfriamiento, igual que onPrevLevel
 
     m_cardSliding = true;
 
     // La animacion se lanza antes de mutar los datos, porque anima las filas que
-    // hay ahora mismo en pantalla.
-    if (m_queuePanel) m_queuePanel->animateRemoval(0);
+    // hay ahora mismo en pantalla. Con la cola vacia no hay fila que quitar.
+    if (m_queuePanel && !data().queue.empty()) m_queuePanel->animateRemoval(0);
 
     data().skipToNext();
     persistAndRefresh();
@@ -743,7 +748,7 @@ void SheepQueueLayer::launchWaitedLevel() {
     // replaceScene, asi que si aqui se apilara, cada ida y vuelta dejaria una
     // escena del mod enterrada en la pila. Push y pop tienen que ir siempre en
     // pareja; aqui la pareja natural es replace/replace.
-    auto scene = PlayLayer::scene(m_waitLevel, false, false);
+    auto scene = PlayLayer::scene(m_waitLevel, false);
     CCDirector::get()->replaceScene(CCTransitionFade::create(0.5f, scene));
 
     m_waitLevel->release();

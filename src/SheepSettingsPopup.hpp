@@ -17,12 +17,13 @@ class SheepSettingsPopup : public geode::Popup {
 public:
     static SheepSettingsPopup* create();
 
+    // Al cerrar (boton, Escape) guarda el ID del placeholder y cierra. Publico
+    // porque en Geode 6 lo es el de Popup.
+    void onClose(cocos2d::CCObject* sender) override;
+
 protected:
     bool setup();     // monta el contenido; la llama create despues de init
     void refresh();   // pone cada control en el estado guardado
-
-    // Al cerrar (boton, Escape) guarda el ID del placeholder y cierra.
-    void onClose(cocos2d::CCObject* sender) override;
 
     // Interruptores de las filas 1 y 2.
     void onToggleIngameTimer(CCObject*);
